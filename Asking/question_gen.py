@@ -20,20 +20,20 @@ def binary_questions(doc):
         if word.deprel == "aux":
             return aux_binary_quesitons(doc)
         elif word.xpos == "VBP":
-            question = "Do " + question
+            question = "do " + question
             question = question + word.lemma + " "
         elif word.xpos == "VBZ":
-            question = "Does " + question
+            question = "does " + question
             question = question + word.lemma + " "
         elif word.xpos == "VBD":
-            question = "Did " + question
+            question = "did " + question
             question = question + word.lemma + " "
         elif word.xpos == ".":
             break;
         else:
             question = question + word.text + " "
 
-    return format_question(question)
+    return question
 
 def aux_binary_quesitons(doc):
     question = ""
@@ -45,6 +45,43 @@ def aux_binary_quesitons(doc):
         else:
             question = question + word.text + " "
 
+    return question
+
+def ner_questions(doc, sentence):
+    questions = []
+    ents = {}
+    for ent in doc.sentences[0].ents:
+        print(ent.text + " " + ent.type)
+        ents[ent.text] = ent.type
+    words = sentence.split()
+    first_word = words[0]
+    if first_word in ents.keys():
+        words[0] = get_wh(ents[first_word])
+        question = " ".join(words)
+        questions.append(format_question(question))
+        del ents[first_word]
+
+    base = binary_questions(doc)
+    for ent in ents.keys():
+        wh = get_wh(ents[ent])
+        question = wh + " " + base
+        question = question.replace(ent, "", 1)
+        questions.append(format_question(question))
+
+    return questions
+
+
+def get_wh(ent):
+    if ent == "PERSON":
+        return "who"
+    if ent == "GPE":
+        return "where"
+    if ent == "DATE":
+        return "when"
+
+def why_questions(doc):
+    question = binary_questions(doc)
+    question = "Why " + question
     return format_question(question)
 
 
@@ -56,12 +93,33 @@ def format_question(question):
 
 # Main program
 if __name__ == "__main__":
-    sentences = ["John made a cake.", "Mary makes a cake.", "I make a cake.", "John has made a cake.", "I have made a cake.", "She had made a cake."]
-    nlp = stanza.Pipeline(lang='en', processors='tokenize,mwt,pos,constituency,lemma,depparse')
+    #sentences = ["John made a cake.", "Mary makes a cake.", "I make a cake.", "John has made a cake.", "I have made a cake.", "She had made a cake."]
+    sentences = ["David had lunch in New York with Mary last Sunday because they did not meet in 10 years."]
+    nlp = stanza.Pipeline(lang='en', processors='tokenize,mwt,pos,constituency,lemma,depparse, ner')
     for line in sentences:
         doc = nlp(line)
         tree = doc.sentences[0].constituency
         if match_npvp(tree):
+            # check for why questions
+            if "because" in line.split():
+                line = line.split("because")[0]
+                line = line.rstrip(",")
+                doc = nlp(line)
+                question = why_questions(doc)
+                print(question)
+            # check if the question contains NERs
+            if len(doc.sentences[0].ents) != 0:
+                question = ner_questions(doc, line)
+                print(question)
+
             question = binary_questions(doc)
+            question = format_question(question)
             print(line)
             print(question)
+
+            # question = ner_questions(doc, line)
+            # question = format_question(question)
+            # print(question)
+
+
+
