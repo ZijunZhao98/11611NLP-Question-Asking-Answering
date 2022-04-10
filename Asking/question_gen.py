@@ -51,7 +51,6 @@ def ner_questions(doc, sentence):
     questions = []
     ents = {}
     for ent in doc.sentences[0].ents:
-        print(ent.text + " " + ent.type)
         ents[ent.text] = ent.type
     words = sentence.split()
     first_word = words[0]
@@ -87,15 +86,17 @@ def why_questions(doc):
 
 def format_question(question):
     str = question.strip()
+    str = str.rstrip(".")
+    str = str.replace("  ", " ")
     str = str[0].upper() + str[1:len(str)]
     str = str + "?"
     return str
 
 # Main program
 if __name__ == "__main__":
-    #sentences = ["John made a cake.", "Mary makes a cake.", "I make a cake.", "John has made a cake.", "I have made a cake.", "She had made a cake."]
-    sentences = ["David had lunch in New York with Mary last Sunday because they did not meet in 10 years."]
+    sentences = ["John made a cake.", "Mary makes a cake.", "I make a cake.", "John has made a cake.", "I have made a cake.", "She had made a cake.", "David had lunch in New York with Mary last Sunday because they did not meet in 10 years."]
     nlp = stanza.Pipeline(lang='en', processors='tokenize,mwt,pos,constituency,lemma,depparse, ner')
+    questions = []
     for line in sentences:
         doc = nlp(line)
         tree = doc.sentences[0].constituency
@@ -106,20 +107,17 @@ if __name__ == "__main__":
                 line = line.rstrip(",")
                 doc = nlp(line)
                 question = why_questions(doc)
-                print(question)
+                questions.append(question)
             # check if the question contains NERs
             if len(doc.sentences[0].ents) != 0:
                 question = ner_questions(doc, line)
-                print(question)
+                questions.extend(question)
 
             question = binary_questions(doc)
             question = format_question(question)
-            print(line)
-            print(question)
+            questions.append(question)
 
-            # question = ner_questions(doc, line)
-            # question = format_question(question)
-            # print(question)
+    print(questions)
 
 
 
