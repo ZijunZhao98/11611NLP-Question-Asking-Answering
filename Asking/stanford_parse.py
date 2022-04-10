@@ -1,4 +1,4 @@
-import os
+#pytimport os
 import stanza
 from tag import *
 import apposition
