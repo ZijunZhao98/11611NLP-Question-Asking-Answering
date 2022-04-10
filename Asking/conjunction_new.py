@@ -1,51 +1,71 @@
 from tag import *
 import re
 
+np_tree = None
+vp_tree = None
 
-
-def matched(tree):
+def simplify_conjunction(tree):
     tree = tree.children[0]
     if tree.label != SENTENCE:
-        return False
+        return []
     if len(tree.children) < 3:
-        return False
+        return []
     np_true = False
     vp_true = False
     #look for np and vp structure
     for child in tree.children:
         if child.label == NP:
             np_true = True
+            np_tree = child
         if child.label == VP:
-            vp_tree = child.children
+            vp_children = child.children
+            vp_tree = child
             vp_true = True
     if not np_true or not vp_true:
-        return False
+        return []
     #look for #VP,VP,CC,VP
               #VP,CC,VP
     check_str = "" #a string for checking
-    for child in vp_tree:
+    for child in vp_children:
         check_str = check_str + child.label
     result = re.search("VP(,VP)?CCVP", check_str)
     if result is None:
-        return False
+        return []
 
-    return True
+    sentences = []
+    sen = []
+    if np_tree and vp_tree:
+        np_tree.children[0].visit_preorder(leaf=lambda x: sen.append(x.label))
+        for child in vp_tree.children:
+            leaf = []
+            if child.label == VP:
+                find_leaves(child, leaf)
+                sentences.append(sen + leaf)
+    return form_strings(sentences)
 
-def split_apposition(tree):
-    two_sentences = []
-    np1 = []
-    tree.children[0].children[0].visit_preorder(leaf=lambda x: np1.append(x.label))
-    np2 = []
-    tree.children[0].children[2].visit_preorder(leaf=lambda x: np2.append(x.label))
-    vp = []
-    tree.children[1].visit_preorder(leaf=lambda x: vp.append(x.label))
-    two_sentences.append(combine_two_sentences(np1, vp))
-    two_sentences.append(combine_two_sentences(np2, vp))
-    return two_sentences
+def find_leaves(tree, leaf):
+    if tree is not None:
+        if len(tree.children) == 0:
+            leaf.append(tree.label)
+        for child in tree.children:
+            find_leaves(child, leaf)
 
-def combine_two_sentences(np, vp):
-    str1 = ' '.join(np)
-    str2 = ' '.join(vp)
-    str = str1 + ' ' + str2
-    str = str.capitalize()
-    return str
+def form_strings(sentences):
+    strings = []
+    for line in sentences:
+        str = ""
+        for i,word in enumerate(line):
+            if i < len(line) - 1 and line[i+1] == ")":
+                str += word
+            elif i < len(line) - 1 and line[i+1] == ",":
+                str += word
+            elif word == '(' or word == ')':
+                str += word
+            else:
+                str = str + word + " "
+        s = str.strip()
+        s = s + "."
+        s.capitalize()
+        strings.append(s)
+    print(strings)
+    return strings
